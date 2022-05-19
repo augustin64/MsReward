@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Module used to log errors and success
+Module used to log errors and success.
 """
 from discord import (  # Importing discord.Webhook and discord.RequestsWebhookAdapter
     Colour,
