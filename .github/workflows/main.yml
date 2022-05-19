@@ -1,0 +1,26 @@
+name: 'Apply patches'
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: apply patches
+      shell: bash
+      run:
+        copy V4.py main.py
+        patch main.py patches/*.patch
+    - name: Push
+      shell: bash
+      run: |
+        git config user.name github-actions
+        git config user.mail github-actions@github.com
+        git add main.py
+        git commit -m 'Apply patches' || true
+        git push || true
