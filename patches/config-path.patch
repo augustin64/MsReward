@@ -1,0 +1,13 @@
+diff --git a/main.py b/main.py
+index 3370ebf..a59663c 100755
+--- a/V4.py
++++ b/V4.py
+@@ -64,7 +64,7 @@ if IsLinux:
+ else:
+     system("")  # enable colors in cmd
+ 
+-config_path = "/home/pi/MsReward/config"
++config_path = "config"
+ config = configparser.ConfigParser()
+ config.read(config_path)
+ #path comfigurations
