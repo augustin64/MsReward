@@ -15,7 +15,7 @@ jobs:
       shell: bash
       run:
         cp V4.py main.py;
-        for file in "patches/*"; do
+        for file in "patches/"*; do
           patch main.py "$file";
         done
     - name: Push
