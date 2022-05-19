@@ -1,0 +1,39 @@
+diff --git a/main.py b/main.py
+index 3370ebf..db866ac 100755
+--- a/V4.py
++++ b/V4.py
+@@ -27,6 +27,8 @@ from selenium.webdriver.support import expected_conditions as EC
+ from selenium.webdriver.support.ui import WebDriverWait
+ import argparse
+ 
++from modules import alert
++
+ parser = argparse.ArgumentParser()
+ 
+ parser.add_argument(
+@@ -186,24 +188,7 @@ def LogError(message, log=FullLog, Mobdriver=None):
+             f.write(gdriver.page_source)
+ 
+         gdriver.save_screenshot("screenshot.png")
+-        if not log:
+-            embed = discord.Embed(
+-                title="An Error has occured",
+-                description=str(message),
+-                colour=Colour.red(),
+-            )
+-        else:
+-            embed = discord.Embed(
+-                title="Full log is enabled",
+-                description=str(message),
+-                colour=Colour.blue(),
+-            )
+-
+-        file = discord.File("screenshot.png")
+-        embed.set_image(url="attachment://screenshot.png")
+-        embed.set_footer(text=_mail)
+-        webhookFailure.send(embed=embed, file=file)
+-        webhookFailure.send(file=discord.File("page.html"))
++        alert.error(message=message, url=ListTabs(Mdriver=Mobdriver)[0], mail=_mail)
+ 
+ 
+ def progressBar(current, total=30, barLength=20, name="Progress"):
