@@ -1,6 +1,6 @@
 [PATH]
 
-motpath = /your/path/to/words_list.txt
+motpath = /usr/share/dict/french
 logpath = /your/path/to/loginandpass.csv
 
 [SETTINGS]
@@ -13,6 +13,7 @@ Headless = True
 
 successlink = https://discord.com/api/webhooks/[put your webhook here]
 errorlink =https://discord.com/api/webhooks/[put your webhook here]
+enabled = True
 
 [PROXY]
 
@@ -20,7 +21,7 @@ enabled = False
 url = Null
 port = 0
 
-[DATABASE]
+[SQL]
 
 enabled = False
 host = Null

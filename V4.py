@@ -73,14 +73,15 @@ LogPath = config["PATH"]["logpath"]
 #discord configurations
 SuccessLink = config["DISCORD"]["successlink"]
 ErrorLink = config["DISCORD"]["errorlink"]
+discord_enabled = config["DISCORD"]["enabled"]
 #base settings
 FidelityLink = config["SETTINGS"]["FidelityLink"]
 embeds = config["SETTINGS"]["embeds"] == "True" #print new point value in an embed
 Headless = config["SETTINGS"]["headless"] == "True"
 #proxy settings
 proxy_enabled = config["PROXY"]["enabled"] == "True"
-proxy_adress = config["PROXY"]["url"] 
-proxy_port = config["PROXY"]["port"] 
+proxy_address = config["PROXY"]["url"]
+proxy_port = config["PROXY"]["port"]
 #MySQL settings
 sql_enabled = config["SQL"]["enabled"] == "True"
 sql_usr = config["SQL"]["usr"]
@@ -89,32 +90,30 @@ sql_host = config["SQL"]["host"]
 sql_database = config["SQL"]["database"]
 
 g = open(MotPath, "r", encoding="utf-8")
-Liste_de_mot = list(g.readline().split(","))
+lines = g.readlines()
+if len(lines) < 3 : 
+    Liste_de_mot = list(lines[0].split(","))
+else :
+    Liste_de_mot = [x.replace('\n', "") for x in lines]
 g.close()
 
-webhookSuccess = Webhook.from_url(SuccessLink, adapter=RequestsWebhookAdapter())
+
 webhookFailure = Webhook.from_url(ErrorLink, adapter=RequestsWebhookAdapter())
+
+
+if discord_enabled:
+    webhookSuccess = Webhook.from_url(SuccessLink, adapter=RequestsWebhookAdapter())
 
 def setup_proxy(ip, port) :
     PROXY = f"{ip}:{port}"
     webdriver.DesiredCapabilities.FIREFOX['proxy'] = {
-    "httpProxy": PROXY,
-    "sslProxy": PROXY,
-    "proxyType": "MANUAL",
+        "httpProxy": PROXY,
+        "sslProxy": PROXY,
+        "proxyType": "MANUAL",
     }
 
-def setup_MySQL():
-    mydb = mysql.connector.connect(
-    host=sql_host,
-    user=sql_usr,
-    password=sql_pwd,
-    database = sql_database
-    )
-    mycursor = mydb.cursor()
 
-
-
-def add_row(compte, points):
+def add_row(compte, points, mycursor, mydb):
     sql = "INSERT INTO daily (compte, points, date) VALUES (%s, %s, current_date())"
     val = (compte, points)
     mycursor.execute(sql, val)
@@ -122,36 +121,48 @@ def add_row(compte, points):
     printf(mycursor.rowcount, "record creatted.")
 
 
-def update_row(compte, points):
+def update_row(compte, points, mycursor, mydb):
     sql = f"UPDATE daily SET points = {points} WHERE compte = '{compte}' AND date = current_date() ;"
     mycursor.execute(sql)
     mydb.commit()
     printf(mycursor.rowcount, "record(s) updated")
 
-def get_row(compte, points, same_points = True): #return if there is a line with the same ammount of point or with the same name as well as the same day
-    if same_points : 
+
+def get_row(compte, points, mycursor, same_points = True): #return if there is a line with the same ammount of point or with the same name as well as the same day
+    if same_points :
         mycursor.execute(f"SELECT * FROM daily WHERE points = {points} AND compte = '{compte}' AND date = current_date() ;")
     else :
         mycursor.execute(f"SELECT * FROM daily WHERE compte = '{compte}' AND date = current_date() ;")
     myresult = mycursor.fetchall()
     return(len(myresult) == 1)
 
+
 def add_to_database(compte, points):
-    if get_row(compte, points, True): #check if the row exist with the same ammount of points and do nothind if it does
+    mydb = mysql.connector.connect(
+        host=sql_host,
+        user=sql_usr,
+        password=sql_pwd,
+        database = sql_database
+    )
+    mycursor = mydb.cursor()
+
+    if get_row(compte, points,mycursor, True): #check if the row exist with the same ammount of points and do nothind if it does
         printf("les points sont deja bon")
-    elif get_row(compte, points, False) : #check if the row exist, but without the same ammount of points and update the point account then
-        update_row(compte, points)
+    elif get_row(compte, points,mycursor, False) : #check if the row exist, but without the same ammount of points and update the point account then
+        update_row(compte, points,mycursor,mydb)
         printf("row updated")
     else : # if the row don't exist, create it with the good ammount of points
-        add_row(compte, points)
+        add_row(compte, points,mycursor,mydb)
         printf("row added")
 
+    mycursor.close()
+    mydb.close()
 
 
 def FirefoxDriver(mobile=False, Headless=Headless):
     if proxy_enabled :
-        setup_proxy(proxy_adress,proxy_port)
-        
+        setup_proxy(proxy_address,proxy_port)
+
     PC_USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -177,7 +188,7 @@ def printf(txt, end="", Mobdriver=driver):
     if Log:
         print(Timer(txt))
     elif FullLog:
-        try : 
+        try :
             LogError(Timer(txt), Mobdriver=Mobdriver)
         except Exception as e:
             print("\n" + Timer(e) + "\n")
@@ -267,6 +278,9 @@ def Close(fenetre, SwitchTo=0):
     driver.switch_to.window(driver.window_handles[SwitchTo])
 
 
+"""
+Deal with RGPD popup as well as some random popup like 'are you satisfied' one
+"""
 def RGPD():
     try:
         driver.find_element(By.ID, "bnp_btn_accept").click()
@@ -276,12 +290,19 @@ def RGPD():
         driver.find_element(By.ID, "bnp_hfly_cta2").click()
     except:
         pass
+    try : 
+        driver.find_element(By.id, "bnp_hfly_close").click() #are you satisfied popup
+    except :
+        pass
 
 
-def PlayQuiz2(override=None):
+
+"""
+PlayQuiz2([int : override]) make the quizz with 2 choice each time. They usually have 10 questions. 
+override is the number of question, by default, it's 10. Can be usefull in some case, where the programm crashes before finishing the quizz
+"""
+def PlayQuiz2(override=10):
     printf("debut de PlayQuiz2")
-    if not override:
-        override = 10
     for j in range(override):
         try:
             RGPD()
@@ -443,7 +464,7 @@ def AllCard():  # fonction qui clique sur les cartes
     except:
         printf("erreur ici")
 
-    def weekly_cards() : 
+    def weekly_cards():
         try:
             driver.find_element(
                 By.XPATH, "/html/body/div/div/div[3]/div[2]/div[2]/div[2]/div[1]"
@@ -477,15 +498,15 @@ def AllCard():  # fonction qui clique sur les cartes
                 ]  # verifie si on a toujours des cartes
             except:
                 break
-    for i in range(3) : 
-        try : 
+    for i in range(3):
+        try :
             weekly_cards()
             break
         except Exception as e:
             LogError(f"weekly_cards, try n°{i+1} \n {e}")
             if i == 0 :
                 driver.refresh()
-            else  : 
+            else :
                 CustomSleep(1800)
                 driver.refresh()
 
@@ -806,23 +827,27 @@ def LogPoint(account="unknown"):  # log des points sur discord
                 point = search('availablePoints":([\d]+)', driver.page_source)[1]
             except Exception as e:
                 LogError(f"LogPoint - 2 - {e}")
-                point = "erreur"
-        return(points)
+                point = -1
+        return(point)
 
     points = get_points()
     CustomSleep(uniform(3, 20))
 
     account = account.split("@")[0]
 
-    if embeds:
-        embed = discord.Embed(
-            title=f"{account} actuellement à {str(point)} points", colour=Colour.green()
-        )
-        embed.set_footer(text=account)
-        webhookSuccess.send(embed=embed)
-    else:
-        webhookSuccess.send(f"{account} actuellement à {str(point)} points")
+    if discord_enabled:
 
+        if embeds:
+            embed = discord.Embed(
+                title=f"{account} actuellement à {str(points)} points", colour=Colour.green()
+            )
+            embed.set_footer(text=account)
+            webhookSuccess.send(embed=embed)
+        else:
+            webhookSuccess.send(f"{account} actuellement à {str(points)} points")
+
+    if sql_enabled :
+        add_to_database(account, points)
 
 def Fidelite():
     try:
@@ -866,19 +891,6 @@ def Fidelite():
             printf("lien invalide")
     except Exception as e:
         LogError("Fidélité" + str(e))
-
-
-def CheckPoint():  # a fix, ne marche pas dans  80% des cas, pas appelé aujourd'hui
-    driver.get("https://rewards.microsoft.com/pointsbreakdown")
-    txt = driver.page_source
-    pc = search("([0-9][0-9]|[0-9])</b> / 90", txt)
-    mobile = search("([0-9][0-9]|[0-9])</b> / 60", txt)
-    if mobile:
-        if mobile[1] != 60:
-            BingMobileSearch(22 - (int(mobile[1]) / 3))
-    if pc:
-        if pc[1] != 90:
-            BingPcSearch(32 - (int(pc[1]) / 3))
 
 
 def DailyRoutine():
