@@ -821,15 +821,7 @@ def LogPoint(account="unknown"):  # log des points sur discord
     account = account.split("@")[0]
 
     if discord_enabled:
-
-        if embeds:
-            embed = discord.Embed(
-                title=f"{account} actuellement à {str(points)} points", colour=Colour.green()
-            )
-            embed.set_footer(text=account)
-            webhookSuccess.send(embed=embed)
-        else:
-            webhookSuccess.send(f"{account} actuellement à {str(points)} points")
+        alert.point(account=account, points=points)
 
     if sql_enabled :
         add_to_database(account, points)
