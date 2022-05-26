@@ -1,0 +1,21 @@
+diff --git a/V4.py b/V4.py
+index 75dc2e3..f2f9417 100755
+--- a/V4.py
++++ b/V4.py
+@@ -836,15 +836,7 @@ def LogPoint(account="unknown"):  # log des points sur discord
+     account = account.split("@")[0]
+ 
+     if discord_enabled:
+-
+-        if embeds:
+-            embed = discord.Embed(
+-                title=f"{account} actuellement à {str(points)} points", colour=Colour.green()
+-            )
+-            embed.set_footer(text=account)
+-            webhookSuccess.send(embed=embed)
+-        else:
+-            webhookSuccess.send(f"{account} actuellement à {str(points)} points")
++        alert.point(account=account, points=points)
+ 
+     if sql_enabled :
+         add_to_database(account, points)
