@@ -263,9 +263,7 @@ def Close(fenetre, SwitchTo=0):
     driver.switch_to.window(driver.window_handles[SwitchTo])
 
 
-"""
-Deal with RGPD popup as well as some random popup like 'are you satisfied' one
-"""
+#Deal with RGPD popup as well as some random popup like 'are you satisfied' one
 def RGPD():
     try:
         driver.find_element(By.ID, "bnp_btn_accept").click()
@@ -510,11 +508,11 @@ def login():
             driver.find_element(By.CSS_SELECTOR, f'[title="Rejoindre"]').click()  # depend of the language of the page
         except:
             driver.find_element(By.CSS_SELECTOR, f'[title="Join now"]').click()  # depend of the language of the page
-
+        CustomSleep(10)
         mail = driver.find_element(By.ID, "i0116")
         send_keys_wait(mail, _mail)
         mail.send_keys(Keys.ENTER)
-        CustomSleep(5)
+        CustomSleep(10)
         pwd = driver.find_element(By.ID, "i0118")
         send_keys_wait(pwd, _password)
         pwd.send_keys(Keys.ENTER)
@@ -604,19 +602,21 @@ def BingMobileSearch(override=randint(22, 25)):
     try:
         try:
             MobileDriver = FirefoxDriver(mobile=True)
+            MobileDriver.implicitly_wait(15)
         except Exception as e:
             sleep(30)
             LogError("BingMobileSearch - 1 - echec de la creation du driver mobile")
             MobileDriver = FirefoxDriver(mobile=True)
-
+            MobileDriver.implicitly_wait(15)
         echec = 0
 
         def Mlogin(echec):
 
             try:
                 MobileDriver.get(
-                    "https://www.bing.com/search?q=test+speed&qs=LS&pq=test+s&sk=PRES1&sc=8-6&cvid=19&FORM=QBRE&sp=1"
+                    "https://www.bing.com/search?q=test+speed"
                 )
+                MRGPD()
                 CustomSleep(uniform(3, 5))
                 printf("debut du login", Mobdriver=MobileDriver)
                 MobileDriver.find_element(By.ID, "mHamburger").click()
@@ -629,7 +629,7 @@ def BingMobileSearch(override=randint(22, 25)):
                 send_keys_wait(mail, _mail)
                 printf("login - 3", Mobdriver=MobileDriver)
                 mail.send_keys(Keys.ENTER)
-                CustomSleep(uniform(1, 2))
+                CustomSleep(uniform(7, 9))
                 printf("login - 4", Mobdriver=MobileDriver)
                 pwd = MobileDriver.find_element(By.ID, "i0118")
                 printf("login - 5", Mobdriver=MobileDriver)
@@ -637,11 +637,27 @@ def BingMobileSearch(override=randint(22, 25)):
                 printf("login - 6", Mobdriver=MobileDriver)
                 pwd.send_keys(Keys.ENTER)
                 CustomSleep(uniform(1, 2))
+                try:
+                    MobileDriver.find_element(By.ID, "KmsiCheckboxField").click()
+                except Exception as e:
+                    printf(f"login - 1 - erreur validation bouton KmsiCheckboxField. pas forcement grave {e}")
+
+                try:
+                    MobileDriver.find_element(By.ID, "iLooksGood").click()
+                except Exception as e:
+                    printf(f"login - 2 - erreur validation bouton iLooksGood. pas forcement grave {e}")
+
+                try:
+                    MobileDriver.find_element(By.ID, "idSIButton9").click()
+                except Exception as e:
+                    printf(f"login - 2 - erreur validation bouton idSIButton9. pas forcement grave {e}")
+
                 printf("fin du login", Mobdriver=MobileDriver)
 
             except Exception as e:
                 echec += 1
                 if echec <= 3:
+                    LogError("message")
                     printf(
                         f"echec du login sur la version mobile. on reesaye ({echec}/3), {e}"
                     )
@@ -826,6 +842,7 @@ def LogPoint(account="unknown"):  # log des points sur discord
     if sql_enabled :
         add_to_database(account, points)
 
+
 def Fidelite():
     try:
         while 1: #close all tabs
@@ -833,49 +850,54 @@ def Fidelite():
                 Close(1)
             except:
                 break
+        try : 
+            result = get(FidelityLink) #get the url of fidelity page
+        except Exception as e :
+            printf(e)
+            result = False
 
-        result = get(FidelityLink) #get the url of fidelity page
-        lien = result.content.decode("UTF-8")
-        printf(lien)
+        if result : 
+            lien = result.content.decode("UTF-8")
+            printf(lien)
 
-        if (lien.split(":")[0] == "https") or (lien.split(":")[0] == "http") : 
-            
-            driver.get(lien)
-            sleep(2)
-            choix = driver.find_element(By.CSS_SELECTOR, 'div[class="pull-left spacer-48-bottom punchcard-row"]')  # pull-left spacer-48-bottom punchcard-row
-            nb = search("([0-9]) of ([0-9]) completed", driver.page_source)
-            if not nb:
-                nb = search("([0-9]) de ([0-9]) finalisé", driver.page_source)
-            for i in range(int(nb[2]) - int(nb[1])):
-                driver.refresh()
-                CustomSleep(2)
-                choix = driver.find_element(By.CLASS_NAME, "spacer-48-bottom")
-                ButtonText = search('<span class="pull-left margin-right-15">([^<^>]+)</span>',choix.get_attribute("innerHTML"))[1]
-                bouton = driver.find_element(By.XPATH, f'//span[text()="{ButtonText}"]')
-                bouton.click()
-                CustomSleep(uniform(3, 5))
-                driver.switch_to.window(driver.window_handles[1])
-                TryPlay(driver.title)
+            if (lien.split(":")[0] == "https") or (lien.split(":")[0] == "http") : 
+                
                 driver.get(lien)
-                CustomSleep(uniform(3, 5))
-                try:
-                    Close(driver.window_handles[1])
-                except Exception as e:
-                    printf(e)
-
-            printf("on a reussit la partie fidélité")
-        else :
-            printf("lien invalide")
+                sleep(2)
+                choix = driver.find_element(By.CSS_SELECTOR, 'div[class="pull-left spacer-48-bottom punchcard-row"]')  # pull-left spacer-48-bottom punchcard-row
+                nb = search("([0-9]) of ([0-9]) completed", driver.page_source)
+                if not nb:
+                    nb = search("([0-9]) de ([0-9]) finalisé", driver.page_source)
+                for i in range(int(nb[2]) - int(nb[1])):
+                    driver.refresh()
+                    CustomSleep(2)
+                    choix = driver.find_element(By.CLASS_NAME, "spacer-48-bottom")
+                    ButtonText = search('<span class="pull-left margin-right-15">([^<^>]+)</span>',choix.get_attribute("innerHTML"))[1]
+                    bouton = driver.find_element(By.XPATH, f'//span[text()="{ButtonText}"]')
+                    bouton.click()
+                    CustomSleep(uniform(3, 5))
+                    driver.switch_to.window(driver.window_handles[1])
+                    TryPlay(driver.title)
+                    driver.get(lien)
+                    CustomSleep(uniform(3, 5))
+                    try:
+                        Close(driver.window_handles[1])
+                    except Exception as e:
+                        printf(e)
+                printf("on a reussit la partie fidélité")
+            else :
+                printf("lien invalide")
     except Exception as e:
         LogError("Fidélité" + str(e))
 
 
 def DailyRoutine():
-    try:
-        BingMobileSearch()
-    except Exception as e:
-        LogError(f"DalyRoutine - BingMobileSearch - {e}")
-    CustomSleep(uniform(3, 20))
+    if not proxy_enabled:
+        try:
+            BingMobileSearch()
+        except Exception as e:
+            LogError(f"DalyRoutine - BingMobileSearch - {e}")
+        CustomSleep(uniform(3, 20))
 
     MainWindows = login()
     try:
