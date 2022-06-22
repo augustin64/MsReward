@@ -26,6 +26,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 import argparse
 import mysql.connector
 
+
+"""
+Setup for option, like --override or --fulllog
+"""
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
@@ -50,15 +55,16 @@ FullLog = args.fulllog
 if override :
     Log = True
 
+
+"""
+gloabal variables used later in the code
+"""
+
 IsLinux = platform == "linux"
 start_time = time()
 
 global driver
 driver = None
-
-
-def Timer(text="undefined"):
-    return(f"[{timedelta(seconds = round(float(time() - start_time)))}] : " + str(text))
 
 
 if IsLinux:
@@ -72,10 +78,19 @@ config.read(config_path)
 #path comfigurations
 MotPath = config["PATH"]["motpath"]
 LogPath = config["PATH"]["logpath"]
-#discord configurations
+
+"""
+discord configuration
+"""
+
 SuccessLink = config["DISCORD"]["successlink"]
 ErrorLink = config["DISCORD"]["errorlink"]
 discord_enabled = config["DISCORD"]["enabled"]
+
+webhookFailure = Webhook.from_url(ErrorLink, adapter=RequestsWebhookAdapter())
+if discord_enabled:
+    webhookSuccess = Webhook.from_url(SuccessLink, adapter=RequestsWebhookAdapter())
+
 #base settings
 FidelityLink = config["SETTINGS"]["FidelityLink"]
 embeds = config["SETTINGS"]["embeds"] == "True" #print new point value in an embed
@@ -100,11 +115,19 @@ else :
 g.close()
 
 
-webhookFailure = Webhook.from_url(ErrorLink, adapter=RequestsWebhookAdapter())
 
 
-if discord_enabled:
-    webhookSuccess = Webhook.from_url(SuccessLink, adapter=RequestsWebhookAdapter())
+def Timer(text="undefined"):
+    return(f"[{timedelta(seconds = round(float(time() - start_time)))}] : " + str(text))
+
+
+def check_ipv4():
+    driver.get("https://api64.ipify.org")
+    elm = driver.find_element(By.TAG_NAME, "body")
+    if len(elm.text.split('.')) == 4 :
+        return True
+    return False
+
 
 def setup_proxy(ip, port) :
     PROXY = f"{ip}:{port}"
@@ -198,7 +221,7 @@ def FirefoxDriver(mobile=False, Headless=Headless):
 def printf(txt, end="", Mobdriver=driver):
     if Log:
         print(Timer(txt))
-    elif FullLog:
+    if FullLog:
         try :
             LogError(Timer(txt), Mobdriver=Mobdriver)
         except Exception as e:
@@ -206,31 +229,30 @@ def printf(txt, end="", Mobdriver=driver):
 
 
 def CustomSleep(temps):
-    if Log or not IsLinux: #only print sleep when user see it
-        c = False
-        points = [
-            " .   ",
-            "  .  ",
-            "   . ",
-            "    .",
-            "    .",
-            "   . ",
-            "  .  ",
-            " .   ",
-        ]
-        for i in range(int(temps)):
-            c = True
-            for i in range(8):
-                sleep(0.125)
-                print(points[i], end="\r")
+    try : 
+        if Log or not IsLinux: #only print sleep when user see it
+            points = [
+                " .   ",
+                "  .  ",
+                "   . ",
+                "    .",
+                "    .",
+                "   . ",
+                "  .  ",
+                " .   ",
+            ]
+            passe = 0
+            for i in range(int(temps)):
+                for i in range(8):
+                    sleep(0.125)
+                    passe += 0.125
+                    print(f"{points[i]}  -  {round(float(temps) - passe, 3)}", end="\r")
+            print("                        ", end="\r")
 
-        if c:
-            print(".   ", end="\r")
-        sleep(temps - int(temps))
-        print("\n")
-    else:
-        sleep(temps)
-
+        else:
+            sleep(temps)
+    except KeyboardInterrupt :
+        printf("attente annulée")
 
 def ListTabs(Mdriver=None):
     tabs = []
@@ -306,8 +328,8 @@ def RGPD():
 
 
 """
-PlayQuiz2([int : override]) make the quizz with 2 choice each time. They usually have 10 questions. 
-override is the number of question, by default, it's 10. Can be usefull in some case, where the programm crashes before finishing the quizz
+PlayQuiz[N]([int : override]) make the quizz with N choice each time. They usually have between 4 and 10 questions. 
+override is the number of question, by default, it's the number of question in this specific quizz. Can be usefull in some case, where the programm crashes before finishing the quizz
 """
 def PlayQuiz2(override=10):
     printf("debut de PlayQuiz2")
@@ -372,12 +394,20 @@ def PlayQuiz8(override=3):
                     try:
                         driver.execute_script("arguments[0].click();", elem)
                     except Exception as e:
-                        LogError("playquizz8 - 2 - " + e)
+                        LogError(f"playquizz8 - 2 - {e}")
+                except exceptions.NoSuchElementException as e :
+                    try : 
+                        driver.refresh()
+                        CustomSleep(10)
+                        elem = driver.find_element(By.ID, i)
+                        elem.click()
+                    except Exception as e :
+                        LogError(f"playquizz8 - 5 -  {e}")
                 except Exception as e:
                     if override:
-                        printf("playquiz8 - 3 -" + e) # may append during 
+                        printf(f"playquiz8 - 3 -  {e}") # may append during 
                     else:
-                        LogError("playquizz8 - 3 - " + e)
+                        LogError(f"playquizz8 - 3 -  {e}")
 
     except Exception as e:
         LogError(f"PlayQuiz8 - 4 - {e} \n ListOfGood : {str(ListeOfGood)}")
@@ -416,7 +446,9 @@ def PlayQuiz4(override=None):
         raise ValueError(e)
     printf("PlayQuiz4 : end")
 
-
+"""
+PlayPoll() reply a random thing to poll
+"""
 def PlayPoll():
     printf("PlayPoll : start")
     try:
@@ -461,7 +493,7 @@ def AllCard():  # fonction qui clique sur les cartes
                     TryPlay(titre)
                     sleep(1)
                     reset()
-                    print(f"DailyCard {titre} ok ")
+                    printf(f"DailyCard {titre} ok ")
                 except Exception as e:
                     printf(f"Allcard card {titre} error ({e})")
         except Exception as e:
@@ -469,8 +501,8 @@ def AllCard():  # fonction qui clique sur les cartes
 
     try:
         dailyCards()
-    except:
-        printf("dans les quetes de la semaine")
+    except Exception as e:
+        printf(f"erreur dans les quetes de la semaine {e}")
 
     def weekly_cards():
         try:
@@ -519,12 +551,19 @@ def AllCard():  # fonction qui clique sur les cartes
                 driver.refresh()
 
 
+"""
+send_keys_wait([selenium element:element, str:keys]) send the different keys to the field element, with a random time between each press to simulate human action.
+keys can be an string, but alos selenium keys
+"""
 def send_keys_wait(element, keys):
     for i in keys:
         element.send_keys(i)
         sleep(uniform(0.1, 0.3))
 
-
+"""
+login() tries to login to your micrososft account.
+it uses global variable _mail and _password to login
+"""
 def login():
     global driver
     printf("login : start")
@@ -533,11 +572,8 @@ def login():
         try:
             driver.find_element(By.CSS_SELECTOR, f'[title="Rejoindre"]').click()  # depend of the language of the page
         except:
-            try : 
-                driver.find_element(By.CSS_SELECTOR, f'[title="Join now"]').click()  # depend of the language of the page
-            except Exception as e:
-                LogError(f"erreur de login : {e} - probablement deja log ou une langue inconnue")
-                return(driver.current_window_handle)
+            driver.find_element(By.CSS_SELECTOR, f'[title="Join now"]').click()  # depend of the language of the page
+
 
         CustomSleep(10)
         mail = driver.find_element(By.ID, "i0116")
@@ -553,24 +589,27 @@ def login():
         try:
             driver.find_element(By.ID, "KmsiCheckboxField").click()
         except Exception as e:
-            printf(f"login - 2.1 - erreur validation bouton KmsiCheckboxField. pas forcement grave {e}")
+            pass
+            #printf(f"login - 2.1 - erreur validation bouton KmsiCheckboxField. pas forcement grave {e}")
 
         try:
             driver.find_element(By.ID, "iLooksGood").click()
         except Exception as e:
-            printf(f"login - 2.2 - erreur validation bouton iLooksGood. pas forcement grave {e}")
+            pass
+            #printf(f"login - 2.2 - erreur validation bouton iLooksGood. pas forcement grave {e}")
 
         try:
             driver.find_element(By.ID, "idSIButton9").click()
         except Exception as e:
-            printf(f"login - 2.3 - erreur validation bouton idSIButton9. pas forcement grave {e}")
+            pass
+            #printf(f"login - 2.3 - erreur validation bouton idSIButton9. pas forcement grave {e}")
 
         try:
             driver.find_element(By.ID, "iCancel").click()
         except Exception as e:
-            printf(f"login - 2.4 - erreur validation bouton iCancel. pas forcement grave {e}")
-
-
+            pass
+            #printf(f"login - 2.4 - erreur validation bouton iCancel. pas forcement grave {e}")
+            
 
         printf("login completed")
         RGPD()
@@ -580,7 +619,7 @@ def login():
     for i in range(3) :
         try : 
             sub_login()
-            return driver.current_window_handle
+            return (driver.current_window_handle)
         except Exception as e:
             LogError("login - 3 - " + str(e))
             driver.close()
@@ -633,9 +672,7 @@ def BingPcSearch(override=randint(35, 40)):
 
 
 def BingMobileSearch(override=randint(22, 25)):
-    MobileDriver = (
-        "si il y a ca dans les logs, c'est que Mobiledriver n'a pas demarrer "
-    )
+    MobileDriver = "unable to start"
     try:
         try:
             MobileDriver = FirefoxDriver(mobile=True)
@@ -658,38 +695,38 @@ def BingMobileSearch(override=randint(22, 25)):
                 printf("debut du login", Mobdriver=MobileDriver)
                 MobileDriver.find_element(By.ID, "mHamburger").click()
                 CustomSleep(uniform(1, 2))
-                printf("login - 1", Mobdriver=MobileDriver)
+                printf("Mlogin - 1", Mobdriver=MobileDriver)
                 MobileDriver.find_element(By.ID, "hb_s").click()
                 CustomSleep(uniform(1, 2))
-                printf("login - 2", Mobdriver=MobileDriver)
+                printf("Mlogin - 2", Mobdriver=MobileDriver)
                 mail = MobileDriver.find_element(By.ID, "i0116")
                 send_keys_wait(mail, _mail)
-                printf("login - 3", Mobdriver=MobileDriver)
+                printf("Mlogin - 3", Mobdriver=MobileDriver)
                 mail.send_keys(Keys.ENTER)
                 CustomSleep(uniform(7, 9))
-                printf("login - 4", Mobdriver=MobileDriver)
+                printf("Mlogin - 4", Mobdriver=MobileDriver)
                 pwd = MobileDriver.find_element(By.ID, "i0118")
-                printf("login - 5", Mobdriver=MobileDriver)
+                printf("Mlogin - 5", Mobdriver=MobileDriver)
                 send_keys_wait(pwd, _password)
-                printf("login - 6", Mobdriver=MobileDriver)
+                printf("Mlogin - 6", Mobdriver=MobileDriver)
                 pwd.send_keys(Keys.ENTER)
                 CustomSleep(uniform(1, 2))
                 try:
                     MobileDriver.find_element(By.ID, "KmsiCheckboxField").click()
                 except Exception as e:
-                    printf(f"login - 1 - erreur validation bouton KmsiCheckboxField. pas forcement grave {e}")
+                    printf(f"Mlogin - 2.1 - erreur validation bouton KmsiCheckboxField. pas forcement grave {e}")
 
                 try:
                     MobileDriver.find_element(By.ID, "iLooksGood").click()
                 except Exception as e:
-                    printf(f"login - 2 - erreur validation bouton iLooksGood. pas forcement grave {e}")
+                    printf(f"Mlogin - 2.2 - erreur validation bouton iLooksGood. pas forcement grave {e}")
 
                 try:
                     MobileDriver.find_element(By.ID, "idSIButton9").click()
                 except Exception as e:
-                    printf(f"login - 2 - erreur validation bouton idSIButton9. pas forcement grave {e}")
+                    printf(f"Mlogin - 2.3 - erreur validation bouton idSIButton9. pas forcement grave {e}")
 
-                printf("fin du login", Mobdriver=MobileDriver)
+                printf("fin du Mlogin", Mobdriver=MobileDriver)
 
             except Exception as e:
                 echec += 1
@@ -710,11 +747,13 @@ def BingMobileSearch(override=randint(22, 25)):
             try:
                 MobileDriver.find_element(By.ID, "bnp_btn_accept").click()
             except Exception as e:
+                pass
                 printf(e)
             try:
                 MobileDriver.find_element(By.ID, "bnp_hfly_cta2").click()
             except Exception as e:
-                printf(e)
+                pass
+                printf(f"MRGPD : e")
 
         def Alerte():
             try:
@@ -753,7 +792,7 @@ def BingMobileSearch(override=randint(22, 25)):
             MobileDriver.quit()
 
     except Exception as e:
-        LogError("BingMobileSearch" + str(e), Mobdriver=MobileDriver)
+        LogError("BingMobileSearch - 4 - " + str(e), Mobdriver=MobileDriver)
         try:
             MobileDriver.quit()
         except Exception as e:
@@ -952,27 +991,23 @@ def DailyRoutine():
         try:
             AllCard()
         except Exception as e:
-            LogError(
-                f"DalyRoutine - AllCard - \n {e}"
-            )
+            LogError(f"DalyRoutine - AllCard - \n{e}")
 
         try:
             BingPcSearch()
         except Exception as e:
-            LogError(f"DalyRoutine - BingPcSearch - \n {e}")
+            LogError(f"DalyRoutine - BingPcSearch - \n{e}")
         CustomSleep(uniform(3, 20))
-
 
         try:
             Fidelite()
         except Exception as e:
-            LogError(f"DailyRoutine - Fidelité - \n {e}")
-
-        if proxy_enabled : 
-            try:
-                BingMobileSearch()
-            except Exception as e:
-                LogError(f"DalyRoutine - BingMobileSearch - {e}")
+            LogError(f"DailyRoutine - Fidelité - \n{e}")
+         
+        try:
+            BingMobileSearch()
+        except Exception as e:
+            LogError(f"DalyRoutine - BingMobileSearch - \n{e}")
         CustomSleep(uniform(3, 20))
 
         try:
@@ -980,23 +1015,16 @@ def DailyRoutine():
         except Exception as e:
             LogError(f"DalyRoutine - LogPoint - \n{e}")
     else : 
-        LogError(f"probleme de login sur e comte {_mail}")
+        LogError(f"probleme de login sur le comte {_mail}")
+
 
 def close():
     driver.quit()
     quit()
 
 
-def check_proxy():
-    driver.get('http://p.p')
-    LogError("test pour voir si le proxy marche")
-    driver.get('https://api.ipify.org')
-    CustomSleep(5)
-    LogError("test pour voir si le proxy marche")
-
-
 def dev():
-    printf("rien en cours de dev")
+    print(check_ipv4())
 
 
 def CustomStart(Credentials):
