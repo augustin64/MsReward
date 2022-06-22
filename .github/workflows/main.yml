@@ -23,6 +23,6 @@ jobs:
       run: |
         git config user.name github-actions
         git config user.mail github-actions@github.com
-        git add main.py;
+        git add patched_main.py;
         git commit -m 'Apply patches' || true
         git push || true
