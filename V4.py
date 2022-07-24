@@ -2,7 +2,7 @@
 import asyncio
 import configparser
 from csv import reader
-from os import sys, system
+from os import sys, system, path
 from random import choice, randint, shuffle, uniform
 from re import findall, search
 from sys import platform
@@ -72,7 +72,7 @@ if IsLinux:
 else:
     system("")  # enable colors in cmd
 
-config_path = "/home/pi/MsReward/config"
+config_path = f"{path.abspath( path.dirname( __file__ ) )}/config"
 config = configparser.ConfigParser()
 config.read(config_path)
 #path comfigurations
@@ -198,13 +198,14 @@ def FirefoxDriver(mobile=False, Headless=Headless):
         setup_proxy(proxy_address,proxy_port)
 
     PC_USER_AGENT = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/64.0.3282.140 Safari/537.36 Edge/17.17134"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        "AppleWebKit/537.36 (KHTML, like Gecko)"
+        "Chrome/103.0.0.0 Safari/537.36 Edg/103.0.1264.37"
     )
     MOBILE_USER_AGENT = (
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8_1 like Mac OS X)"
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X)"
+        "AppleWebKit/605.1.15 (KHTML, like Gecko)"
+        "CriOS/103.0.5060.63 Mobile/15E148 Safari/604.1"
     )
 
     options = Options()
