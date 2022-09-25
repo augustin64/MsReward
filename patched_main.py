@@ -2,7 +2,7 @@
 import asyncio
 import configparser
 from csv import reader
-from os import sys, system
+from os import sys, system, path
 from random import choice, randint, shuffle, uniform
 from re import findall, search
 from sys import platform
@@ -21,8 +21,6 @@ from selenium.common import exceptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 import argparse
 import mysql.connector
 
@@ -30,8 +28,6 @@ import mysql.connector
 """
 Setup for option, like --override or --fulllog
 """
-
-from modules import alert
 
 parser = argparse.ArgumentParser()
 
@@ -50,36 +46,40 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-override = args.override
-Log = args.log
-FullLog = args.fulllog
+CUSTOM_START = args.override
+LOG = args.log
+FULL_LOG = args.fulllog
 
-if override :
-    Log = True
+if CUSTOM_START :
+    LOG = True
+
+#SOON (maybe)
+#logpath = ("/".join(__file__.split("/")[:-1])+"/LogFile.out")
+#logfile = open(logpath, "w")
 
 
 """
 gloabal variables used later in the code
 """
 
-IsLinux = platform == "linux"
-start_time = time()
+LINUX_HOST = platform == "linux"
+START_TIME = time()
 
 global driver
 driver = None
 
 
-if IsLinux:
+if LINUX_HOST:
     import enquiries
 else:
     system("")  # enable colors in cmd
 
-config_path = "config"
+config_path = f"{path.abspath( path.dirname( __file__ ) )}/config"
 config = configparser.ConfigParser()
 config.read(config_path)
 #path comfigurations
 MotPath = config["PATH"]["motpath"]
-LogPath = config["PATH"]["logpath"]
+CREDENTIALS_PATH = config["PATH"]["logpath"]
 
 """
 discord configuration
@@ -120,7 +120,7 @@ g.close()
 
 
 def Timer(text="undefined"):
-    return(f"[{timedelta(seconds = round(float(time() - start_time)))}] : " + str(text))
+    return(f"[ {_mail} - {timedelta(seconds = round(float(time() - START_TIME)))} ]" + str(text))
 
 
 def check_ipv4():
@@ -198,17 +198,17 @@ def add_to_database(compte, points):
 def FirefoxDriver(mobile=False, Headless=Headless):
     if proxy_enabled :
         setup_proxy(proxy_address,proxy_port)
-
     PC_USER_AGENT = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/64.0.3282.140 Safari/537.36 Edge/17.17134"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        "AppleWebKit/537.36 (KHTML, like Gecko)"
+        "Chrome/104.0.5112.102 Safari/537.36 Edg/104.0.1293.70"
     )
     MOBILE_USER_AGENT = (
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8_1 like Mac OS X)"
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X)"
+        "AppleWebKit/605.1.15 (KHTML, like Gecko)"
+        "CriOS/103.0.5060.63 Mobile/15E148 Safari/604.1"
     )
-
+    
     options = Options()
     options.set_preference("browser.link.open_newwindow", 3)
     if Headless:
@@ -217,22 +217,24 @@ def FirefoxDriver(mobile=False, Headless=Headless):
         options.set_preference("general.useragent.override", MOBILE_USER_AGENT)
     else :
         options.set_preference("general.useragent.override", PC_USER_AGENT)
-    return webdriver.Firefox(options=options)
+    driver = webdriver.Firefox(options=options)
+    driver.set_window_size(1900 + hash(_mail)%20 , 1070 + hash(_password + "salt")%10)
+    return driver
 
 
 def printf(txt, end="", Mobdriver=driver):
     if Log:
         print(Timer(txt))
-    if FullLog:
+    if FULL_LOG:
         try :
             LogError(Timer(txt), Mobdriver=Mobdriver)
         except Exception as e:
-            print("\n" + Timer(e) + "\n")
+            print("\n" + Timer(e) + "\n" + Timer(txt) + "\n" )
 
 
 def CustomSleep(temps):
     try : 
-        if Log or not IsLinux: #only print sleep when user see it
+        if Log or not LINUX_HOST: #only print sleep when user see it
             points = [
                 " .   ",
                 "  .  ",
@@ -256,6 +258,7 @@ def CustomSleep(temps):
     except KeyboardInterrupt :
         printf("attente annulée")
 
+
 def ListTabs(Mdriver=None):
     tabs = []
     if Mdriver:
@@ -268,19 +271,36 @@ def ListTabs(Mdriver=None):
     return tabs
 
 
-def LogError(message, log=FullLog, Mobdriver=None):
+def LogError(message, log=FULL_LOG, Mobdriver=None):
+    print(f"\n\n\033[93m Erreur : {str(message)}  \033[0m\n\n")
     if Mobdriver:
         gdriver = Mobdriver
     else:
         gdriver = driver
-    if not log:
-        print(f"\n\n\033[93m Erreur : {str(message)}  \033[0m\n\n")
-    if IsLinux:
+
+    if LINUX_HOST:
         with open("page.html", "w") as f:
             f.write(gdriver.page_source)
 
         gdriver.save_screenshot("screenshot.png")
-        alert.error(message=message, url=ListTabs(Mdriver=Mobdriver)[0], mail=_mail)
+        if not log:
+            embed = discord.Embed(
+                title="An Error has occured",
+                description=str(message),
+                colour=Colour.red(),
+            )
+        else:
+            embed = discord.Embed(
+                title="Full log is enabled",
+                description=str(message),
+                colour=Colour.blue(),
+            )
+
+        file = discord.File("screenshot.png")
+        embed.set_image(url="attachment://screenshot.png")
+        embed.set_footer(text=_mail)
+        webhookFailure.send(embed=embed, file=file)
+        webhookFailure.send(file=discord.File("page.html"))
 
 
 def progressBar(current, total=30, barLength=20, name="Progress"):
@@ -365,7 +385,7 @@ def PlayQuiz8(override=3):
                     if 'iscorrectoption="True" ' in Card.get_attribute("outerHTML"):
                         ListeOfGood.append(f"rqAnswerOption{i-1}")  # premier div = 3 ?
                 except Exception as e:
-                    LogError("playquiz8 - 1 - " + e)
+                    LogError(f"playquiz8 - 1 - {e}")
             shuffle(ListeOfGood)
 
             for i in ListeOfGood:
@@ -389,7 +409,7 @@ def PlayQuiz8(override=3):
                     except Exception as e :
                         LogError(f"playquizz8 - 5 -  {e}")
                 except Exception as e:
-                    if override:
+                    if CUSTOM_START:
                         printf(f"playquiz8 - 3 -  {e}") # may append during 
                     else:
                         LogError(f"playquizz8 - 3 -  {e}")
@@ -427,12 +447,13 @@ def PlayQuiz4(override=None):
                 driver.execute_script("arguments[0].click();", elem)
 
     except Exception as e:
-        LogError("PlayQuiz4" + str(e))
+        LogError(f"PlayQuiz4 {str(e)}")
         raise ValueError(e)
     printf("PlayQuiz4 : end")
 
+
 """
-PlayPoll() reply a random thing to poll
+PlayPoll() reply a random thing to poll, on of daily activities
 """
 def PlayPoll():
     printf("PlayPoll : start")
@@ -467,8 +488,9 @@ def AllCard():  # fonction qui clique sur les cartes
     def dailyCards():
         try:
             for i in range(3):
-                sleep(1)
+                sleep(uniform(3, 5))
                 try:
+                    printf("dailycards - show pannels")
                     titre = "erreur"
                     driver.find_element(
                         By.XPATH,f"/html/body/div/div/div[3]/div[2]/div[1]/div[2]/div/div[{i+1}]/a/div/div[2]",
@@ -551,14 +573,16 @@ it uses global variable _mail and _password to login
 """
 def login():
     global driver
-    printf("login : start")
     def sub_login():
+        printf("sublogin : start")
         driver.get("https://www.bing.com/rewardsapp/flyout")
         try:
             driver.find_element(By.CSS_SELECTOR, f'[title="Rejoindre"]').click()  # depend of the language of the page
         except:
-            driver.find_element(By.CSS_SELECTOR, f'[title="Join now"]').click()  # depend of the language of the page
-
+            try :
+                driver.find_element(By.CSS_SELECTOR, f'[title="Join now"]').click()  # depend of the language of the page
+            except :
+                raise ValueError('already logged in')
 
         CustomSleep(10)
         mail = driver.find_element(By.ID, "i0116")
@@ -569,8 +593,6 @@ def login():
         send_keys_wait(pwd, _password)
         pwd.send_keys(Keys.ENTER)
         CustomSleep(5)
-        printf("pwd envoyé")
-
         try:
             driver.find_element(By.ID, "KmsiCheckboxField").click()
         except Exception as e:
@@ -594,12 +616,16 @@ def login():
         except Exception as e:
             pass
             #printf(f"login - 2.4 - erreur validation bouton iCancel. pas forcement grave {e}")
-            
-
+        try : 
+            elm = driver.find_element(By.TAG_NAME, "body")
+            elm.send_keys(Keys.ENTER)
+        except :
+            pass
         printf("login completed")
         RGPD()
+        CustomSleep(uniform(3,5))
         driver.get("https://www.bing.com/rewardsapp/flyout")
-
+        CustomSleep(uniform(3,5))
 
     for i in range(3) :
         try : 
@@ -635,7 +661,7 @@ def BingPcSearch(override=randint(35, 40)):
         except Exception as e :
             printf(e)
             sleep(10)
-            driver.refresh()
+            driver.get('https://www.bing.com/search?q=pls')
             sleep(3)
             send_keys_wait(driver.find_element(By.ID, "sb_form_q"), mot)
             driver.find_element(By.ID, "sb_form_q").send_keys(Keys.ENTER)
@@ -648,7 +674,7 @@ def BingPcSearch(override=randint(35, 40)):
         except Exception as e:
             printf(e)
             try:
-                driver.refresh()
+                driver.get('https://www.bing.com/search?q=pls')
                 driver.find_element(By.ID, "sb_form_q").clear()
             except Exception as e:
                 LogError(f"BingPcSearch - clear la barre de recherche - {e}")
@@ -862,7 +888,7 @@ def TryPlay(nom="inconnu"):
 def LogPoint(account="unknown"):  # log des points sur discord
     def get_points():
         driver.get("https://www.bing.com/rewardsapp/flyout")
-        if not IsLinux:
+        if not LINUX_HOST:
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         else:
             asyncio.set_event_loop(asyncio.new_event_loop())
@@ -894,7 +920,15 @@ def LogPoint(account="unknown"):  # log des points sur discord
     account = account.split("@")[0]
 
     if discord_enabled:
-        alert.point(account=account, points=points)
+
+        if embeds:
+            embed = discord.Embed(
+                title=f"{account} actuellement à {str(points)} points", colour=Colour.green()
+            )
+            embed.set_footer(text=account)
+            webhookSuccess.send(embed=embed)
+        else:
+            webhookSuccess.send(f"{account} actuellement à {str(points)} points")
 
     if sql_enabled :
         add_to_database(account, points)
@@ -961,9 +995,12 @@ def Fidelite():
         LogError("Fidélité" + str(e))
 
 
-def DailyRoutine():
-
-    MainWindows = login()
+def DailyRoutine(custom = False):
+    if not custom :
+        MainWindows = login()
+    else :
+        MainWindows = ""
+        
     if MainWindows != "STOP" :
         try:
             AllCard()
@@ -1005,8 +1042,8 @@ def dev():
 
 
 def CustomStart(Credentials):
-    if not IsLinux :
-        raise NameError('You need to be on linux to do that, sorry.') 
+    if not LINUX_HOST :
+        raise NameError('You need to be on linux to do that, due to the utilisation of a module named enquieries, sorry.') 
     global driver
     global _mail
     global _password
@@ -1027,7 +1064,7 @@ def CustomStart(Credentials):
 
         if login() != "STOP":
             if "tout" in Actions:
-                DailyRoutine()
+                DailyRoutine(True)
 
             if "daily" in Actions:
                 try:
@@ -1067,13 +1104,13 @@ def CustomStart(Credentials):
         driver.close()
 
 
-with open(LogPath) as f:
+with open(CREDENTIALS_PATH) as f:
     reader = reader(f)
     Credentials = list(reader)
 
 shuffle(Credentials)
 
-if override:
+if CUSTOM_START:
     CustomStart(Credentials)
 else:
     for i in Credentials:
@@ -1100,5 +1137,5 @@ else:
             print("canceled")
             close()
 
-if IsLinux:
+if LINUX_HOST:
     system("pkill -9 firefox")
