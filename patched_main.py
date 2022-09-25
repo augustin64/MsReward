@@ -29,6 +29,8 @@ import mysql.connector
 Setup for option, like --override or --fulllog
 """
 
+from modules import alert
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
@@ -283,24 +285,7 @@ def LogError(message, log=FULL_LOG, Mobdriver=None):
             f.write(gdriver.page_source)
 
         gdriver.save_screenshot("screenshot.png")
-        if not log:
-            embed = discord.Embed(
-                title="An Error has occured",
-                description=str(message),
-                colour=Colour.red(),
-            )
-        else:
-            embed = discord.Embed(
-                title="Full log is enabled",
-                description=str(message),
-                colour=Colour.blue(),
-            )
-
-        file = discord.File("screenshot.png")
-        embed.set_image(url="attachment://screenshot.png")
-        embed.set_footer(text=_mail)
-        webhookFailure.send(embed=embed, file=file)
-        webhookFailure.send(file=discord.File("page.html"))
+        alert.error(message=message, url=ListTabs(Mdriver=Mobdriver)[0], mail=_mail)
 
 
 def progressBar(current, total=30, barLength=20, name="Progress"):
@@ -920,15 +905,7 @@ def LogPoint(account="unknown"):  # log des points sur discord
     account = account.split("@")[0]
 
     if discord_enabled:
-
-        if embeds:
-            embed = discord.Embed(
-                title=f"{account} actuellement à {str(points)} points", colour=Colour.green()
-            )
-            embed.set_footer(text=account)
-            webhookSuccess.send(embed=embed)
-        else:
-            webhookSuccess.send(f"{account} actuellement à {str(points)} points")
+        alert.point(account=account, points=points)
 
     if sql_enabled :
         add_to_database(account, points)
