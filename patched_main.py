@@ -225,7 +225,7 @@ def FirefoxDriver(mobile=False, Headless=Headless):
 
 
 def printf(txt, end="", Mobdriver=driver):
-    if Log:
+    if LOG:
         print(Timer(txt))
     if FULL_LOG:
         try :
@@ -236,7 +236,7 @@ def printf(txt, end="", Mobdriver=driver):
 
 def CustomSleep(temps):
     try : 
-        if Log or not LINUX_HOST: #only print sleep when user see it
+        if LOG or not LINUX_HOST: #only print sleep when user see it
             points = [
                 " .   ",
                 "  .  ",
