@@ -22,7 +22,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
 import argparse
-import mysql.connector
+from modules.db import add_to_database
 
 
 """
@@ -44,12 +44,15 @@ parser.add_argument(
     help="enable full logging in discord",
     action="store_true",
 )
+parser.add_argument(
+    "-r", "--risky", help="make the program faster, probably better risk of ban", dest="fast", action="store_true"
+)
 
 args = parser.parse_args()
 CUSTOM_START = args.override
 LOG = args.log
 FULL_LOG = args.fulllog
-
+FAST = args.fast
 if CUSTOM_START :
     LOG = True
 
@@ -89,8 +92,8 @@ SuccessLink = config["DISCORD"]["successlink"]
 ErrorLink = config["DISCORD"]["errorlink"]
 discord_enabled = config["DISCORD"]["enabled"]
 
-webhookFailure = Webhook.from_url(ErrorLink, adapter=RequestsWebhookAdapter())
 if discord_enabled:
+    webhookFailure = Webhook.from_url(ErrorLink, adapter=RequestsWebhookAdapter())
     webhookSuccess = Webhook.from_url(SuccessLink, adapter=RequestsWebhookAdapter())
 
 #base settings
@@ -140,60 +143,6 @@ def setup_proxy(ip, port) :
     }
 
 
-def add_row(compte, points, mycursor, mydb):
-    sql = "INSERT INTO daily (compte, points, date) VALUES (%s, %s, current_date())"
-    val = (compte, points)
-    mycursor.execute(sql, val)
-    mydb.commit()
-    printf(mycursor.rowcount, "record creatted.")
-
-
-def update_row(compte, points, mycursor, mydb):
-    sql = f"UPDATE daily SET points = {points} WHERE compte = '{compte}' AND date = current_date() ;"
-    mycursor.execute(sql)
-    mydb.commit()
-    printf(mycursor.rowcount, "record(s) updated")
-
-
-def update_last(compte, points, mycursor, mydb):
-    sql = f"UPDATE comptes SET last_pts = {points} WHERE compte = '{compte}';"
-    mycursor.execute(sql)
-    mydb.commit()
-    printf(mycursor.rowcount, "record(s) updated")
-
-
-def get_row(compte, points, mycursor, same_points = True): #return if there is a line with the same ammount of point or with the same name as well as the same day
-    if same_points :
-        mycursor.execute(f"SELECT * FROM daily WHERE points = {points} AND compte = '{compte}' AND date = current_date() ;")
-    else :
-        mycursor.execute(f"SELECT * FROM daily WHERE compte = '{compte}' AND date = current_date() ;")
-    myresult = mycursor.fetchall()
-    return(len(myresult) == 1)
-
-
-def add_to_database(compte, points):
-    mydb = mysql.connector.connect(
-        host=sql_host,
-        user=sql_usr,
-        password=sql_pwd,
-        database = sql_database
-    )
-    mycursor = mydb.cursor()
-
-    if get_row(compte, points,mycursor, True): #check if the row exist with the same ammount of points and do nothind if it does
-        printf("les points sont deja bon")
-    elif get_row(compte, points,mycursor, False) : #check if the row exist, but without the same ammount of points and update the point account then
-        update_row(compte, points,mycursor,mydb)
-        printf("row updated")
-    else : # if the row don't exist, create it with the good ammount of points
-        add_row(compte, points,mycursor,mydb)
-        printf("row added")
-    if int(points) > 10 :
-        update_last(compte, points, mycursor, mydb)
-
-    mycursor.close()
-    mydb.close()
-
 
 def FirefoxDriver(mobile=False, Headless=Headless):
     if proxy_enabled :
@@ -234,6 +183,9 @@ def printf(txt, end="", Mobdriver=driver):
 
 def CustomSleep(temps):
     try : 
+        if FAST :
+            sleep(temps/10)
+            return()
         if LOG or not LINUX_HOST: #only print sleep when user see it
             points = [
                 " .   ",
@@ -278,7 +230,7 @@ def LogError(message, log=FULL_LOG, Mobdriver=None):
     else:
         gdriver = driver
 
-    if LINUX_HOST:
+    if LINUX_HOST and discord_enabled:
         with open("page.html", "w") as f:
             f.write(gdriver.page_source)
 
@@ -377,7 +329,7 @@ def PlayQuiz8(override=3):
         c = 0
         for i in range(override):
             RGPD()
-            sleep(uniform(3, 5))
+            CustomSleep(uniform(3, 5))
             ListeOfGood = []
             for i in range(1, 9):
                 try:
@@ -389,7 +341,7 @@ def PlayQuiz8(override=3):
             shuffle(ListeOfGood)
 
             for i in ListeOfGood:
-                sleep(uniform(3, 5))
+                CustomSleep(uniform(3, 5))
                 c += 1
                 progressBar(c, 16, name="Quiz 8 ")
                 try:
@@ -488,7 +440,7 @@ def AllCard():  # fonction qui clique sur les cartes
     def dailyCards():
         try:
             for i in range(3):
-                sleep(uniform(3, 5))
+                CustomSleep(uniform(3, 5))
                 try:
                     printf("dailycards - show pannels")
                     titre = "erreur"
@@ -565,7 +517,10 @@ keys can be an string, but alos selenium keys
 def send_keys_wait(element, keys):
     for i in keys:
         element.send_keys(i)
-        sleep(uniform(0.1, 0.3))
+        if FAST :
+            pass
+        else :
+            sleep(uniform(0.1, 0.3))
 
 """
 login() tries to login to your micrososft account.
@@ -667,7 +622,7 @@ def BingPcSearch(override=randint(35, 40)):
             driver.find_element(By.ID, "sb_form_q").send_keys(Keys.ENTER)
 
         progressBar(i, override, name="PC")
-        sleep(uniform(5, 20))
+        CustomSleep(uniform(5, 20))
 
         try:
             driver.find_element(By.ID, "sb_form_q").clear()
@@ -791,7 +746,7 @@ def BingMobileSearch(override=randint(22, 25)):
                     MobileDriver.find_element(By.ID, "sb_form_q").send_keys(Keys.ENTER)
                     progressBar(i, override, name="Mobile")
                     printf(MobileDriver.current_url, Mobdriver=MobileDriver)
-                    sleep(uniform(5, 20))
+                    CustomSleep(uniform(5, 20))
 
                     Alerte()  # verifie si il y a des alertes (demande de positions ....)
 
@@ -931,7 +886,7 @@ def LogPoint(account="unknown"):  # log des points sur discord
             webhookSuccess.send(f"{account} actuellement à {str(points)} points")
 
     if sql_enabled :
-        add_to_database(account, points)
+        add_to_database(account, points, sql_host, sql_usr, sql_pwd, sql_database)
 
 
 def Fidelite():
@@ -988,7 +943,7 @@ def Fidelite():
                         Close(driver.window_handles[1])
                     except Exception as e:
                         printf(e)
-                printf("on a reussit la partie fidélité (ou pas et tout est pété)")
+                printf("fidelité - done")
             else :
                 printf("lien invalide")
     except Exception as e:
@@ -1097,10 +1052,11 @@ def CustomStart(Credentials):
                     printf(e)
                     break
 
-            try:
-                LogPoint(_mail)
-            except Exception as e:
-                print("CustomStart " + str(e))
+            if not "tout" in Actions:
+                try:
+                    LogPoint(_mail)
+                except Exception as e:
+                    print("CustomStart " + str(e))
         driver.close()
 
 
@@ -1130,12 +1086,9 @@ else:
             DailyRoutine()
             driver.quit()
             attente = uniform(1200, 3600)
-            print(f"finis. attente de {round(attente/60)}min")
+            printf(f"finis. attente de {round(attente/60)}min")
             CustomSleep(attente)
 
         except KeyboardInterrupt:
             print("canceled")
             close()
-
-if LINUX_HOST:
-    system("pkill -9 firefox")
