@@ -2,10 +2,20 @@
 
 import configparser
 import os 
-print
-config_path = f"{os.path.abspath( os.path.dirname( __file__ ) )}/config"
+import shutil
+
 config = configparser.ConfigParser()
-config.read(config_path)
+
+try : 
+    config_path = f"{os.path.abspath( os.path.dirname( __file__ ) )}/user_data/config.cfg"
+    config.read(config_path)
+except :
+    default_config = f"{os.path.abspath( os.path.dirname( __file__ ) )}/user_data/config.default"
+    shutil.copyfile(default_config, config_path)
+    config.read(config_path)
+
+
+
 
 def confirm(texte, default = False):
     if default : 
@@ -27,23 +37,22 @@ lang = "fr"
 text = {"fr" : {
     "compte" : "entrer l'adresse mail du compte ", 
     "mdp" : "entrez le mot de passe du compte ",
-    "next" : "voulez vous ajouter un compte ?",
-    "finc" : "comptes en cours d'ajout",
-    "ajout" : "comptes ajouté",
-    "fidelity" : "avez vous un lien sur lequel le lien vers la page fidelité du mois est le seul contenu de la page ?",
-    "lien" : "entrez le lien",
-    "discorde" : "voulez vous envoyer les points sur discord ?",
-    "w1" : "entrez le lien du WebHook pour envoyer les points (https://support.discord.com/hc/fr/articles/228383668-Utiliser-les-Webhooks)",
-    "w2" : "entrez le lien du WebHook pour envoyer les erreurs",
-    "msqle" : "voulez vous untiliser une base de donnée",
-    "msqll" : "entrez le lien de la base de donnée",
-    "msqlu" : "entrez l'utilisateur de la base de donnée",
-    "msqlp" : "entrez le mot de passe de la base de donnée",
-    "msqlt" : "entrez le nom de la table de la base de donnée",
-    "proxye" : "voulez vous utiliser un proxy",
-    "proxyl" : "entrez le lien du proxy",
-    "proxyp" : "entrez le port du proxy"
-
+    "next" : "voulez vous ajouter un compte ? ",
+    "finc" : "comptes en cours d'ajout ",
+    "ajout" : "comptes ajouté ",
+    "fidelity" : "avez vous un lien sur lequel le lien vers la page fidelité du mois est le seul contenu de la page ? ",
+    "lien" : "entrez le lien ",
+    "discorde" : "voulez vous envoyer les erreurs sur discord ? ",
+    "w1" : "entrez le lien du WebHook pour envoyer les points ",
+    "w2" : "entrez le lien du WebHook pour envoyer les erreurs ",
+    "msqle" : "voulez vous untiliser une base de donnée ",
+    "msqll" : "entrez le lien de la base de donnée ",
+    "msqlu" : "entrez l'utilisateur de la base de donnée ",
+    "msqlp" : "entrez le mot de passe de la base de donnée ",
+    "msqlt" : "entrez le nom de la table de la base de donnée ",
+    "proxye" : "voulez vous utiliser un proxy ",
+    "proxyl" : "entrez le lien du proxy ",
+    "proxyp" : "entrez le port du proxy "
     }
     }
 
@@ -67,21 +76,27 @@ def setup_comptes():
         else:
             print(t["finc"])
             break
-    f = open('./login.csv', "w")
+    f = open('./user_data/login.csv', "w")
     for i in lc :
         f.write(i)
     f.close()
     print(t["ajout"])
 
     #modifie le fichier de configuration
-    edit_config(3,f'{os.getcwd()}/login.csv')
+    edit_config_txt("logpath",f'{os.getcwd()}/user_data/login.csv')
 
 
-def edit_config(ligne, contenu):
+def edit_config_txt(ligne, contenu):
     f = open(config_path, "r")
     txt = f.readlines()
-    txt[ligne] = f'{txt[ligne].split("=")[0]}= {contenu}\n'
     f.close()
+    if txt.count(txt) >1:
+        raise NameError("il y a plus d'une occurence, echec de la modification")
+    
+    for i in range(len(txt)) :
+        name = txt[i].split(" = ")[0]
+        if name == ligne:
+            txt[i] = name + " = " + str(contenu) + "\n"
 
     f = open(config_path, "w")
     for i in txt :
@@ -94,43 +109,50 @@ def setup_settings():
     discord()
     proxy()
     sql()
+    amazon()
     
 def general():
     if confirm(t["fidelity"]):
         lien = input(t["lien"])
-        edit_config(7,lien)
+        edit_config_txt('FidelityLink',lien)
     
 def discord():
     enabled = confirm(t["discorde"], default = True)
     if enabled : 
-        edit_config(13, True)
+        edit_config_txt("DiscordErrorEnabled", True)
+        
+        edit_config_txt('DiscordSuccessEnabled', confirm("send success ?", default = True))
         w1 = input(t["w1"])
-        edit_config(14,w1)
+        edit_config_txt("successlink",w1)
         w2 = input(t["w2"])
-        edit_config(15,w2)
+        edit_config_txt("errorlink",w2)
         
 def sql() :
     enabled = confirm(t["msqle"], default = False)
     if enabled : 
-        edit_config(25, True)
+        edit_config_txt("sql_enabled", True)
         lien = input(t["msqll"])
-        edit_config(26,lien)
+        edit_config_txt("host",lien)
         table = input(t["msqlt"])
-        edit_config(27,table)
+        edit_config_txt("database",table)
         user = input(t["msqlu"])
-        edit_config(28,user)
+        edit_config_txt("usr",user)
         pwd = input(t["msqlp"])
-        edit_config(29,pwd)
+        edit_config_txt("pwd",pwd)
      
 def proxy() :
     enabled = confirm(t["proxye"], default = False)
     if enabled : 
-        edit_config(19, True)
+        edit_config_txt("proxy_enabled", True)
         lien = input(t["proxyl"])
-        edit_config(20,lien)
+        edit_config_txt("url",lien)
         port = input(t["proxyp"])
-        edit_config(21,port)
+        edit_config_txt("port",port)
      
+def amazon():
+    enabled = confirm("claim les recompenses automatiquement sur amazon ?", default = False)
+    edit_config_txt("claim_amazon",enabled)
+
 
 LogPath = config["PATH"]["logpath"]
 if LogPath == "/your/path/to/loginandpass.csv" :

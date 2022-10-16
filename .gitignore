@@ -1,6 +1,5 @@
 /old
 geckodriver.log
-config
 .vscode/
 update.sh
 /Git
@@ -10,3 +9,4 @@ login.csv
 requirements.txt
 data
 **/__pycache__
+/user_data
