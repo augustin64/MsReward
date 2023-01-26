@@ -9,8 +9,6 @@ from discord import (  # Importing discord.Webhook and discord.RequestsWebhookAd
 
 from modules.config import *
 
-_mail = "undefined"
-
 """
 send_keys_wait([selenium element:element, str:keys]) send the different keys to the field element, with a random time between each press to simulate human action.
 keys can be an string, but alos selenium keys
@@ -24,13 +22,13 @@ def send_keys_wait(element, keys):
             sleep(uniform(0.1, 0.3))
 
 
-def LogError(message, driver, _mail, log=FULL_LOG):
+def LogError(message, driver, mail, log=FULL_LOG):
     print(f"\n\n\033[93m Erreur : {str(message)}  \033[0m\n\n")
     if DISCORD_ENABLED_ERROR:
         with open("page.html", "w") as f:
-            f.write(gdriver.page_source)
+            f.write(driver.page_source)
 
-        gdriver.save_screenshot("screenshot.png")
+        driver.save_screenshot("screenshot.png")
         if not log:
             embed = discord.Embed(
                 title="An Error has occured",
@@ -46,7 +44,7 @@ def LogError(message, driver, _mail, log=FULL_LOG):
 
         file = discord.File("screenshot.png")
         embed.set_image(url="attachment://screenshot.png")
-        embed.set_footer(text=_mail)
+        embed.set_footer(text=mail)
         webhookFailure.send(embed=embed, file=file)
         webhookFailure.send(file=discord.File("page.html"))
 
@@ -54,15 +52,15 @@ def LogError(message, driver, _mail, log=FULL_LOG):
 
 # add the time arround the text given in [text]
 # [text] : string
-def Timer(text="undefined", mail=_mail):
-    return(f"[{_mail} - {timedelta(seconds = round(float(time() - START_TIME)))}] " + str(text))
+def Timer(text, mail):
+    return(f"[{mail} - {timedelta(seconds = round(float(time() - START_TIME)))}] " + str(text))
 
 
 # replace the function print, with more options
 # [txt] : string, [driver] : selenium wbdriver
-def printf(txt, mail = _mail, LOG = LOG):
+def printf2(txt, mail, LOG = LOG):
     if LOG:
-        print(Timer(txt, _mail))
+        print(Timer(txt, mail))
 
 
 
@@ -71,9 +69,38 @@ def printf(txt, mail = _mail, LOG = LOG):
 
 def check_ipv4(driver):
     driver.get("https://api64.ipify.org")
-    elm = driver.find_element(By.TAG_NAME, "body")
+    elm = driver.find_element(BY.TAG_NAME, "body")
     if len(elm.text.split('.')) == 4 :
         return True
     return False
 
 
+
+def CustomSleep(temps):
+    try : 
+        if FAST and temps > 50:
+            sleep(temps/10)
+            return()
+        if not LOG or not LINUX_HOST: #only print sleep when user see it
+            points = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
+            passe = 0
+            for i in range(int(temps)):
+                for i in range(8):
+                    sleep(0.125)
+                    passe += 0.125
+                    print(f"{points[i]}  -  {round(float(temps) - passe, 3)}", end="\r")
+            print("                        ", end="\r")
+        else:
+            sleep(temps)
+    except KeyboardInterrupt :
+        print("attente annulée")
+
+
+
+
+
+def progressBar(current, total=30, barLength=20, name="Progress"):
+    percent = float(current + 1) * 100 / total
+    arrow = "-" * int(percent / 100 * barLength - 1) + ">"
+    spaces = " " * (barLength - len(arrow))
+    print(name + ": [%s%s] %d %%" % (arrow, spaces, percent), end="\r")

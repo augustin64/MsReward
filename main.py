@@ -8,7 +8,8 @@ config = configparser.ConfigParser()
 
 try : 
     config_path = f"{os.path.abspath( os.path.dirname( __file__ ) )}/user_data/config.cfg"
-    config.read(config_path)
+    if config.read(config_path)==[] :
+        raise NameError("le fichier n'existe pas")
 except :
     default_config = f"{os.path.abspath( os.path.dirname( __file__ ) )}/user_data/config.default"
     shutil.copyfile(default_config, config_path)
@@ -72,13 +73,14 @@ def setup_comptes():
         if confirm(t["next"], default = True):
             compte = input(t["compte"])
             mdp = input(t["mdp"])
-            lc.append(f"{compte},{mdp}\n")
+            lc.append(f"{compte},{mdp}")
         else:
             print(t["finc"])
             break
     f = open('./user_data/login.csv', "w")
     for i in lc :
         f.write(i)
+        f.write("\n")
     f.close()
     print(t["ajout"])
 
@@ -116,6 +118,7 @@ def general():
         lien = input(t["lien"])
         edit_config_txt('FidelityLink',lien)
     
+
 def discord():
     enabled = confirm(t["discorde"], default = True)
     if enabled : 
@@ -126,6 +129,7 @@ def discord():
         edit_config_txt("successlink",w1)
         w2 = input(t["w2"])
         edit_config_txt("errorlink",w2)
+        
         
 def sql() :
     enabled = confirm(t["msqle"], default = False)
@@ -158,4 +162,4 @@ LogPath = config["PATH"]["logpath"]
 if LogPath == "/your/path/to/loginandpass.csv" :
     setup()
 else :
-    os.system("python3.10 V4.py")
+    os.system("python3 V4.py")

@@ -9,7 +9,7 @@ from discord import (  # Importing discord.Webhook and discord.RequestsWebhookAd
     Webhook,
 )
 from time import time
-
+from random import shuffle
 
 """
 Setup for option, like --override or --fulllog
@@ -18,11 +18,36 @@ Setup for option, like --override or --fulllog
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "-o", "--override", help="override", dest="override", action="store_true"
+    "-o", 
+    "--override", 
+    help="override", 
+    dest="override", 
+    action="store_true"
 )
+
 parser.add_argument(
-    "-l", "--log", dest="log", help="enable logging in terminal", action="store_true"
+    "-u", 
+    "--unban", 
+    help="unban an account", 
+    dest="unban", 
+    action="store_true"
 )
+
+parser.add_argument(
+    "--claim", 
+    help="show claim", 
+    dest="claim", 
+    action="store_true"
+)
+
+parser.add_argument(
+    "-l",
+    "--log", 
+    dest="log", 
+    help="enable logging in terminal", 
+    action="store_true"
+)
+
 parser.add_argument(
     "-fl",
     "--fulllog",
@@ -31,22 +56,41 @@ parser.add_argument(
     action="store_true",
 )
 parser.add_argument(
-    "-r", "--risky", help="make the program faster, probably better risk of ban", dest="fast", action="store_true"
+    "-r", 
+    "--risky", 
+    help="make the program faster, probably better risk of ban", 
+    dest="fast", 
+    action="store_true"
 )
 
 parser.add_argument(
-    "-c", "--config", help="Choose a specific config file", type=argparse.FileType('r')
+    "-c", 
+    "--config", 
+    help="Choose a specific config file", 
+    type=argparse.FileType('r')
+)
+
+parser.add_argument(
+    "-a", 
+    "--add-points", 
+    help="Add points to the database from a file and exit",
+    dest="points_file",
+    default=""
 )
 
 args = parser.parse_args()
+CLAIM = args.claim
 CUSTOM_START = args.override
+UNBAN = args.unban
 LOG = args.log
 FULL_LOG = args.fulllog
 FAST = args.fast
 if CUSTOM_START :
     LOG = True
 
-# gloabal variables used later in the code
+POINTS_FILE = args.points_file
+
+# global variables used later in the code
 LINUX_HOST = platform == "linux" # if the computer running this programm is linux, it allow more things 
 START_TIME = time()
 driver = None
@@ -103,7 +147,7 @@ sql_database = config["SQL"]["database"]
 
 # Other seetings 
 IPV6_CHECKED = config["OTHER"]["ipv6"]
-CLAIM_AMAZON = config["OTHER"]["claim_amazon"]
+CLAIM_AMAZON = config["OTHER"]["claim_amazon"] == "True"
 
 
 g = open(MotPath, "r", encoding="utf-8")
@@ -115,3 +159,7 @@ else :
 g.close()
 
 
+with open(CREDENTIALS_PATH) as f:
+    reader = reader(f)
+    Credentials = list(reader)
+shuffle(Credentials)
